@@ -11,4 +11,6 @@ dependencies = [
 
 [[package]]
 name = "boml"
-version = "0.2.0"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85fdb93f04c73bff54305fa437ffea5449c41edcaadfe882f35836206b166ac5"

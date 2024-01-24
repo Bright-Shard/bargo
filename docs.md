@@ -37,7 +37,8 @@ These settings are only available for the workspace table.
 
 # Post-Build Scripts
 
-Post-build scripts run after a crate is finished compiling. They only run if the crate compiled successfully.
+Post-build scripts run after a crate is finished compiling. They only run if the crate compiled successfully. If a crate
+is compiled for multiple targets, this script will run after all targets have finished compiling.
 
 Post-build scripts use [cargo scripts](https://dev-doc.rust-lang.org/stable/cargo/reference/unstable.html#script) under
 the hood. Because of this, they do **not** have access to `dev-dependencies` and normal environment variables like build
@@ -47,11 +48,19 @@ scripts do. You can add dependencies at the top of the file as described in the
 Bargo does make a few environment variables available to post-build scripts, but they're WIP. Currently, post-build
 scripts can access the following:
 - `BARGO_ROOT`: The path to the root of the bargo workspace. This is also where the build script gets run.
+- `PROFILE`: The optimisation profile. Set to `debug` unless Bargo is building in release mode, in which case it's
+set to `release`.
 
 
-# Other Bargo Notes
+# Details on How Bargo Works & Possible Errors
 
-- Bargo's toml parser is [boml](https://github.com/bright-shard/boml). The upside of using boml is that it has no dependencies
-and low overhead. The downside is that it's new and not tested as well as other TOML parsers. If bargo has an issue while
-reading your `bargo.toml` config, and you're certain the toml is valid, please open an issue in
-[boml's repo](https://github.com/bright-shard/boml).
+These errors are pretty theoretical, but could happen nevertheless since Bargo is new and relatively untested.
+
+- Bargo's toml parser is [boml](https://github.com/bright-shard/boml), a fast and (nearly) zero-copy TOML parser. It can
+parse all TOML except date/time values, and passes the valid tests in TOML's test suite (though it skips date/time tests).
+It doesn't pass TOML's invalid tests (yet), meaning it's not yet a perfect parser. This shouldn't happen, since it passes
+the valid TOML tests; but if Bargo is parsing your TOML wrong, and you're certain the TOML is valid, please open an issue
+on [BOML's GitHub repo](https://github.com/bright-shard/boml).
+- Bargo attempts to detect cyclic dependencies by maintaining a queue of crates it hasn't built yet, and erroring if a crate
+gets put in that queue twice. I'm fairly certain this approach will prevent cyclic deps; however, if bargo gets stuck in an
+infinite loop, please open an issue here.

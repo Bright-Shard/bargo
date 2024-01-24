@@ -1,37 +1,56 @@
 # Bargo
 
 **Bargo** is a wrapper around Cargo that provides more features to make a more feature-complete build system.
-It's goal is to simplify complex workspaces and projects that already push Cargo's boundaries.
+It's goal is to simplify complex workspaces and projects that already push Cargo's boundaries. It acts nearly
+like a drop-in Cargo binary; every argument Bargo supports is identical to its argument in Cargo (though it
+does not support every Cargo argument, so it's not a complete drop-in).
 
 Bargo only has 1 dependency ([boml](https://github.com/bright-shard/boml), a TOML parser with 0 dependencies),
 and should compile in mere seconds.
+
+*This project was written without the assistance of GitHub CodeStealer, OpenAI's ChatGPThief, or other similar
+content-stealing predictive algorithms.*
 
 # To-Do
 
 Everything below this is what Bargo should look like when it's finished; unfortunately, it's not all yet implemented.
 
+- [x] Bargo build
+	- [x] Release mode
+	- [x] Custom targets
+	- [x] Features
 - [x] Custom crate paths
 - [x] Custom build targets
 	- [x] Multiple targets per crate
+	- [x] Custom targets (target.json)
 - [x] Enabling unstable cargo features
 - [x] Direct cargo arguments
 - [x] The default-build setting
 - [x] Prebuild dependencies
-- [ ] Post-build scripts
+	- [x] Crate features
+	- [x] Custom targets
+	- [x] Prevent cyclic dependences
+- [x] Post-build scripts
 	- [ ] Environment variables
 - [ ] Bargo run
+	- [ ] Release mode
+	- [ ] Features
 - [ ] The default-run setting
 - [ ] Custom runners
+- [ ] Stable config format
 
-Essentially, `bargo build` is implemented, but `bargo run` is not. Post-build scripts have some limitations.
+Essentially, `bargo build` is implemented, but `bargo run` is not. Building has a few limitations. I'm working on
+what environment variables to provide to post-build scripts. Bargo is also unstable (hence it being version 0), and
+there's nothing preventing breaking changes at the moment. I'd like to have editions, similar to Rust.
 
 # What Bargo Adds
 
 Bargo adds:
-- **Post-build scripts**: These act just like regular build scripts, but run *after* a crate builds, instead of before.
+- **Post-build scripts**: These act like regular build scripts, but run *after* a crate builds, instead of before.
 - **Per-crate targets**: Compile different crates in the same workspace for different target triples. Crates can also
 be compiled for multiple target triples.
-- **Per-crate Cargo features**: Enable different unstable Cargo features for different crates in the workspace.
+- **Per-crate unstable Cargo features**: Enable different unstable Cargo features for individual crates in a workspace.
+- **Binary dependencies**: Guarantee that another binary crate in the workspace gets built before the current one.
 
 These features are just the ones I've needed for my operating system, [bs](https://github.com/bright-shard/bs). If there's
 other features that you want, open a GitHub issue and request them!
@@ -62,7 +81,9 @@ unstable = { build-std = "core", unstable-options = true }
 runner = "some-wrapper-script"
 # Other workspace members to build before building this crate. This is similar to the unstable artifact dependencies
 # feature, but not exactly the same (see the docs).
-prebuild = "crate456"
+# Any arguments passed via CLI (like --features) are ignored for prebuilds. You can instead specify crate features
+# and targets in the table directly.
+prebuild.crate456 = {}
 # Pass direct arguments to Cargo
 direct-arg = "--build-plan"
 
@@ -129,3 +150,6 @@ If `default-build` is unspecified, bargo will build every crate in the workspace
 
 If `bargo r` is run with no crates specified, bargo will run the crate specified by `default-run` in the `workspace` table. If
 `default-run` isn't set, bargo will error. **`bargo r` is currently unimplemented.**
+
+You can build in release mode (`-r`), specify crate features to enable (`--features`), specify the target to build for (`--target`),
+or specify which crates to build (`-p`).

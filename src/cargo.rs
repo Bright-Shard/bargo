@@ -1,8 +1,7 @@
 //! Cargo wrapper types.
 
 use {
-    crate::{output, Ctx},
-    boml::prelude::*,
+    crate::crate_prelude::*,
     std::{fs, path::PathBuf},
 };
 
@@ -16,11 +15,14 @@ pub struct CargoCommand<'a> {
     pub direct_arguments: Vec<&'a str>,
 }
 impl<'a> CargoCommand<'a> {
-    pub fn new(pkg: &'a Crate<'a>) -> Self {
+    pub fn new(pkg: &'a Crate<'a>) -> Result<Self, Error> {
         let unstable_features = if let Some(unstable) = pkg.get("unstable") {
             let Some(unstable) = unstable.table() else {
-                let ty = unstable.value_type();
-                output::toml_type_mismatch("unstable", TomlValueType::Table, ty);
+                return Err(Error::TomlError(TomlError::TypeMismatch(
+                    "unstable".to_string(),
+                    TomlValueType::Table,
+                    unstable.value_type(),
+                )));
             };
 
             let mut args = Vec::with_capacity(unstable.len());
@@ -40,11 +42,11 @@ impl<'a> CargoCommand<'a> {
 
                         for (idx, value) in feature_values.iter().enumerate() {
                             let Some(value) = value.string() else {
-                                output::toml_child_type_mismatch(
-                                    "unstable",
+                                return Err(Error::TomlError(TomlError::ChildTypeMismatch(
+                                    "unstable".to_string(),
                                     TomlValueType::String,
                                     value.value_type(),
-                                );
+                                )));
                             };
 
                             arg.push_str(value);
@@ -55,11 +57,13 @@ impl<'a> CargoCommand<'a> {
 
                         args.push(arg);
                     }
-                    other_value => output::toml_type_mismatch(
-                        "unstable",
-                        TomlValueType::String,
-                        other_value.value_type(),
-                    ),
+                    other_value => {
+                        return Err(Error::TomlError(TomlError::TypeMismatch(
+                            "unstable".to_string(),
+                            TomlValueType::String,
+                            other_value.value_type(),
+                        )));
+                    }
                 }
             }
 
@@ -78,47 +82,39 @@ impl<'a> CargoCommand<'a> {
 
                     for arg in args_src {
                         let Some(arg) = arg.string() else {
-                            output::toml_child_type_mismatch(
-                                "direct-arg",
+                            return Err(Error::TomlError(TomlError::ChildTypeMismatch(
+                                "direct-arg".to_string(),
                                 TomlValueType::String,
                                 arg.value_type(),
-                            )
+                            )));
                         };
+
                         args.push(arg);
                     }
 
                     args
                 }
-                other => output::toml_type_mismatch(
-                    "direct-arg",
-                    TomlValueType::String,
-                    other.value_type(),
-                ),
+                other => {
+                    return Err(Error::TomlError(TomlError::TypeMismatch(
+                        "direct-arg".to_string(),
+                        TomlValueType::String,
+                        other.value_type(),
+                    )));
+                }
             }
         } else {
             Vec::with_capacity(0)
         };
 
-        Self {
+        Ok(Self {
             pkg,
             unstable_features,
             direct_arguments,
-        }
+        })
     }
 
     pub fn is_unstable(&self) -> bool {
         !self.unstable_features.is_empty()
-    }
-
-    pub fn num_arguments(&self) -> usize {
-        // +4 is for: build, --target_dir, path to target dir, extra in case --target is needed
-        let num = self.unstable_features.len() + self.direct_arguments.len() + 4;
-
-        if self.is_unstable() {
-            num + 1
-        } else {
-            num
-        }
     }
 }
 
@@ -134,10 +130,14 @@ pub struct Crate<'a> {
     pub path: PathBuf,
 }
 impl<'a> Crate<'a> {
-    pub fn new(ctx: &'a Ctx<'a>, table: &'a TomlTable<'a>, name: &'a str) -> Self {
+    pub fn new(ctx: &'a Ctx<'a>, table: &'a TomlTable<'a>, name: &'a str) -> Result<Self, Error> {
         let path = if let Some(cfg_path) = table.get("path") {
             let Some(cfg_path) = cfg_path.string() else {
-                output::toml_type_mismatch("path", TomlValueType::String, cfg_path.value_type());
+                return Err(Error::TomlError(TomlError::TypeMismatch(
+                    "path".to_string(),
+                    TomlValueType::String,
+                    cfg_path.value_type(),
+                )));
             };
 
             ctx.root.join(cfg_path)
@@ -148,40 +148,48 @@ impl<'a> Crate<'a> {
         // Verify the crate's path
         let cargo_toml_path = path.join("Cargo.toml");
         if !cargo_toml_path.exists() {
-            let path = cargo_toml_path.display();
-            panic!("Bargo couldn't find the path for the crate `{name}`. It searched for a `Cargo.toml` at `{path}`.");
+            return Err(Error::BuildError(BuildError::NoCargoToml(
+                name.to_string(),
+                cargo_toml_path.to_str().unwrap().to_string(),
+            )));
         }
         let cargo_toml_contents = fs::read_to_string(&cargo_toml_path).unwrap_or_else(|err| {
-            output::invalid_cargo_toml(name, &format!("fs::read error: {err}"));
-        });
-        let cargo_toml = Toml::parse(&cargo_toml_contents).unwrap_or_else(|err| {
-            output::invalid_cargo_toml(
-                name,
-                &format!(
-                    "Toml parsing error: {}",
-                    output::prettify_toml_syntax_error(&cargo_toml_contents, err)
-                ),
+            panic!(
+                "Failed to read file at `{}`: {err}",
+                cargo_toml_path.display()
             );
         });
+        let cargo_toml = Toml::parse(&cargo_toml_contents).map_err(|err| {
+            Error::BuildError(BuildError::InvalidCargoToml(
+                name.to_string(),
+                TomlError::ParseError(err, cargo_toml_contents.clone()),
+            ))
+        })?;
         let Ok(package) = cargo_toml.get_table("package") else {
-            output::invalid_cargo_toml(name, "Failed to find the `package` table");
+            return Err(Error::BuildError(BuildError::InvalidCargoToml(
+                name.to_string(),
+                TomlError::MissingKey("package".to_string(), TomlValueType::Table),
+            )));
         };
         let Ok(name_in_cfg) = package.get_string("name") else {
-            output::invalid_cargo_toml(name, "Failed to get the crate's name");
+            return Err(Error::BuildError(BuildError::InvalidCargoToml(
+                name.to_string(),
+                TomlError::MissingKey("package.name".to_string(), TomlValueType::String),
+            )));
         };
         if name_in_cfg != name {
-            panic!(
-                "Error while compiling crate `{name}`: \
-				Bargo expected a crate named `{name}`, but in its `Cargo.toml` it is called `{name_in_cfg}`."
-            );
+            return Err(Error::BuildError(BuildError::CrateNameMismatch(
+                name.to_string(),
+                name_in_cfg.to_string(),
+            )));
         }
 
-        Self {
+        Ok(Self {
             table,
             workspace: ctx.workspace,
             name,
             path,
-        }
+        })
     }
 
     pub fn get(&self, key: &str) -> Option<&TomlValue> {
