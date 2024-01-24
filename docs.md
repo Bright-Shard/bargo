@@ -21,17 +21,95 @@ Some settings are exclusive to crate tables, and are described in the "Crate Tab
 config section. Other settings are exclusive to the workspace table, and are described in the "Workspace Table
 Configuration" below the crate table config section.
 
+
+
 ## General Configuration
 
-These settings are available for the workspace table and crate entries.
+These settings are available for the workspace table and crate entries. If any of these keys are defined in the workspace
+table, they're used as default values for any crates that don't also define that key.
+
+#### `direct-arg`
+
+Type: String or array of strings
+
+Specifies a direct argument, which is fed to Cargo exactly as provided. Can also be an array of arguments, which are given
+to Cargo exactly as provided in the same order they're provided.
+
+#### `postbuild`
+
+Type: String
+
+Specifies a path to a Rust script that will be executed after the crate finishes compiling. See the "Post-Build Scripts"
+section below for more information.
+
+#### `prebuild`
+
+Type: Table
+
+Each entry in the prebuild table specifies a crate to be built before the current crate is built. An entry's name is the name
+of the crate that needs to be prebuilt. Each entry is also a table that can optionally have `target` and `feature` keys, both
+of which can either be a string or array of strings. The first defines the target(s) the prebuild crate should be built for,
+and the latter enables specific features on the prebuild crate.
+
+#### `runner`
+
+Currently unimplemented (will be implemented when `bargo run` is implemented). Will define a wrapper binary that runs when the
+crate is run with Bargo.
+
+#### `target`
+
+Type: String or array of strings
+
+Defines a target or targets to build the crate for. If multiple targets are specified, Bargo will recompile the crate, once for
+each target specified. Each target must either be a target triple (the same ones Cargo uses) or a path to a custom target file.
+Bargo assumes the target is a custom target if it contains `.json`. All paths are relative to the workspace root.
+
+#### `unstable`
+
+Type: Table
+
+Specifies unstable Cargo features to be enabled when building the crate. Each key in the table is the name of an unstable feature
+to enable. Each value to the table must be a boolean, string, or array of strings.
+
+Booleans will be converted into flags; for example, `unstable = { unstable-options = true }` will result in `-Zunstable-options`
+being passed to Cargo.
+
+Strings or array of strings will be converted into `key=value` arguments; for example, `unstable = { build-std = "core" }` will
+result in `-Zbuild-std=core` being passed to Cargo, and `unstable = { build-std = ["core", "alloc"] }` will result in
+`-Zbuild-std=core,alloc` being passed to Cargo.
+
+
 
 ## Crate Table Configuration
 
 These settings are only available for entries into the crate table.
 
+#### `path`
+
+Type: String
+
+Specifies the path to the crate being configured. All paths are relative to the workspace root.
+
+If unspecified, Bargo will look for the crate at `<workspace root>/<crate name>`.
+
+
+
 ## Workspace Table Configuration
 
 These settings are only available for the workspace table.
+
+#### `default-build`
+
+Type: String or array of strings
+
+When `bargo build` is run, if no crates are specified in the command, Bargo will build the crates
+specified here. If it's a string, Bargo will treat it as one crate to build. If it's an array, Bargo
+will build every crate in the array.
+
+#### `default-run`
+
+Currently unimplemented (will be implemented when `bargo run` is implemented). Will define the default
+crates to run if `cargo run` is executed with no crates specified, similarly to `default-build`.
 
 
 
@@ -50,6 +128,7 @@ scripts can access the following:
 - `BARGO_ROOT`: The path to the root of the bargo workspace. This is also where the build script gets run.
 - `PROFILE`: The optimisation profile. Set to `debug` unless Bargo is building in release mode, in which case it's
 set to `release`.
+
 
 
 # Details on How Bargo Works & Possible Errors

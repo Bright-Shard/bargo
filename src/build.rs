@@ -302,57 +302,6 @@ fn build_prebuilds(
             )?;
         }
     }
-    // let prebuilds = pkg.get("prebuild").and_then(|val| val.table())
-    // let prebuilds = if let Some(prebuild) = pkg.get("prebuild") {
-    //     match prebuild {
-    //         TomlValue::Array(prebuilds) => {
-    //             let mut new_prebuilds = Vec::with_capacity(prebuilds.len());
-
-    //             for prebuild in prebuilds {
-    //                 let Some(prebuild) = prebuild.string() else {
-    //                     return Err(Error::TomlError(TomlError::ChildTypeMismatch(
-    //                         String::from("prebuild"),
-    //                         TomlValueType::String,
-    //                         prebuild.value_type(),
-    //                     )));
-    //                 };
-    //                 new_prebuilds.push(prebuild);
-    //             }
-
-    //             new_prebuilds
-    //         }
-    //         TomlValue::String(prebuild) => {
-    //             let prebuild = prebuild.as_str();
-    //             vec![prebuild]
-    //         }
-    //         _ => {
-    //             return Err(Error::TomlError(TomlError::TypeMismatch(
-    //                 "prebuild".to_string(),
-    //                 TomlValueType::String,
-    //                 prebuild.value_type(),
-    //             )));
-    //         }
-    //     }
-    // } else {
-    //     Vec::with_capacity(0)
-    // };
-
-    // for prebuild in prebuilds {
-    //     if !build_ctx.build_list.contains(prebuild) {
-    //         let Ok(crate_cfg) = build_ctx.ctx.crates.get_table(prebuild) else {
-    //             return Err(Error::BuildError(BuildError::UnknownCrate(
-    //                 UnknownCrateSource::Prebuild(pkg.name.to_string()),
-    //                 prebuild.to_string(),
-    //             )));
-    //         };
-
-    //         build_crate(
-    //             build_ctx,
-    //             Crate::new(build_ctx.ctx, crate_cfg, prebuild)?,
-    //             true,
-    //         )?;
-    //     }
-    // }
 
     Ok(())
 }
