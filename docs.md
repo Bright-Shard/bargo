@@ -51,11 +51,6 @@ of the crate that needs to be prebuilt. Each entry is also a table that can opti
 of which can either be a string or array of strings. The first defines the target(s) the prebuild crate should be built for,
 and the latter enables specific features on the prebuild crate.
 
-#### `runner`
-
-Currently unimplemented (will be implemented when `bargo run` is implemented). Will define a wrapper binary that runs when the
-crate is run with Bargo.
-
 #### `target`
 
 Type: String or array of strings
@@ -108,8 +103,11 @@ will build every crate in the array.
 
 #### `default-run`
 
-Currently unimplemented (will be implemented when `bargo run` is implemented). Will define the default
-crates to run if `cargo run` is executed with no crates specified, similarly to `default-build`.
+Type: String
+
+When `bargo run` is run, if no crate is specified in the command, bargo will build the crate
+specified here. Note that, unlike `default-build` and `bargo build`, `default-run` and `bargo run`
+only support 1 crate (it doesn't make sense to run multiple crates simultaneously).
 
 
 

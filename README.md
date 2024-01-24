@@ -32,16 +32,15 @@ Everything below this is what Bargo should look like when it's finished; unfortu
 	- [x] Prevent cyclic dependences
 - [x] Post-build scripts
 	- [ ] Environment variables
-- [ ] Bargo run
-	- [ ] Release mode
-	- [ ] Features
-- [ ] The default-run setting
-- [ ] Custom runners
+- [x] Bargo run
+	- [x] Release mode
+	- [x] Features
+- [x] The default-run setting
 - [ ] Stable config format
 
-Essentially, `bargo build` is implemented, but `bargo run` is not. Building has a few limitations. I'm working on
-what environment variables to provide to post-build scripts. Bargo is also unstable (hence it being version 0), and
-there's nothing preventing breaking changes at the moment. I'd like to have editions, similar to Rust.
+Almost everything is done; I don't feel like I've exposed enough environment variables to post-build scripts though,
+and I'm waiting on general feedback. Bargo also has no system preventing breaking changes in its config; I'd like
+to implement something similar to Rust editions instead to help with this.
 
 # What Bargo Adds
 
@@ -77,8 +76,6 @@ postbuild = "builder.rs"
 target = "x86_64-unknown-none"
 # Unstable cargo features to enable.
 unstable = { build-std = "core", unstable-options = true }
-# A custom runner, for when `bargo r`/`bargo run` is used. (Currently unimplemented)
-runner = "some-wrapper-script"
 # Other workspace members to build before building this crate. This is similar to the unstable artifact dependencies
 # feature, but not exactly the same (see the docs).
 # Any arguments passed via CLI (like --features) are ignored for prebuilds. You can instead specify crate features
@@ -142,14 +139,11 @@ See the docs for more info.
 
 ## Bargo Itself
 
-Just like Cargo, bargo has a `build` (or `b`) subcommand and `run` (or `r`) subcommand. The only arguments to these commands
-are the crates to build or run (ie, `bargo b crate123` will build crate123).
+Just like Cargo, bargo has a `build` (or `b`) subcommand and `run` (or `r`) subcommand. Bargo accepts similar arguments to
+Cargo; `-r` for release mode, `-p` to select a package/crate to build/run, and `--features` to enable crate features.
 
 If `bargo b` is run with no crates specified, bargo will build any crates specified in `default-build` in the `workspace` table.
 If `default-build` is unspecified, bargo will build every crate in the workspace.
 
 If `bargo r` is run with no crates specified, bargo will run the crate specified by `default-run` in the `workspace` table. If
-`default-run` isn't set, bargo will error. **`bargo r` is currently unimplemented.**
-
-You can build in release mode (`-r`), specify crate features to enable (`--features`), specify the target to build for (`--target`),
-or specify which crates to build (`-p`).
+`default-run` isn't set, bargo will error.

@@ -1,164 +1,200 @@
 //! Fancy error and terminal output.
 
 use {
-    crate::crate_prelude::*,
-    std::fmt::{self, Debug},
+	crate::crate_prelude::*,
+	std::fmt::{self, Debug},
 };
 
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
-    /// An error while parsing TOML in the `bargo.toml` file.
-    TomlError(TomlError),
-    /// An error in the `build` subcommand.
-    BuildError(BuildError),
-    /// No command was given to Bargo.
-    NoCommand,
-    /// An unknown command was given to Bargo. Stores the unknown command.
-    UnknownCommand(String),
-    /// No `bargo.toml` file could be found in this folder nor its parents.
-    NoConfig,
-    /// No crates are defined in `bargo.toml`.
-    NoCrates,
-    /// An unknown argument was given to Bargo. Stores the unknown argument.
-    UnknownArgument(String),
-    /// Multiple subcommands were passed to Bargo. Stores the subcommands.
-    MultipleSubcommands(String, String),
+	/// An error while parsing TOML in the `bargo.toml` file.
+	TomlError(TomlError),
+	/// An error in the `build` subcommand.
+	BuildError(BuildError),
+	/// An error in the `run` subcommand.
+	RunError(RunError),
+	/// No command was given to Bargo.
+	NoCommand,
+	/// An unknown command was given to Bargo. Stores the unknown command.
+	UnknownCommand(String),
+	/// No `bargo.toml` file could be found in this folder nor its parents.
+	NoConfig,
+	/// No crates are defined in `bargo.toml`.
+	NoCrates,
+	/// An unknown argument was given to Bargo. Stores the unknown argument.
+	UnknownArgument(String),
+	/// Multiple subcommands were passed to Bargo. Stores the subcommands.
+	MultipleSubcommands(String, String),
 }
 impl Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NoCrates => write!(f, "No crates are defined in `bargo.toml`, nothing to do..."),
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+            Self::NoCrates => write!(f, "Bargo: No crates are defined in `bargo.toml`, nothing to do..."),
             Self::NoCommand => {
-                write!(f, "No command provided.\n{}", help())
+                write!(f, "Bargo: No command provided.\n{}", help())
             }
             Self::UnknownCommand(cmd) => {
-                write!(f, "Unknown command `{cmd}`.\n{}", help())
+                write!(f, "Bargo: Unknown command `{cmd}`.\n{}", help())
             }
-            Self::TomlError(err) => write!(f, "Error while parsing `bargo.toml`: {err:?}"),
-            Self::BuildError(err) => write!(f, "Error while building: {err:?}"),
+            Self::TomlError(err) => write!(f, "Bargo: Error while parsing `bargo.toml`: {err:?}"),
+            Self::BuildError(err) => write!(f, "Bargo: Error while building: {err:?}"),
+            Self::RunError(err) => write!(f, "Bargo: {err:?}"),
             Self::NoConfig => write!(
                 f,
-                "Couldn't find a `bargo.toml` file in this folder nor its parent folders. Is this a Bargo workspace?"
+                "Bargo: Couldn't find a `bargo.toml` file in this folder nor its parent folders. Is this a Bargo workspace?"
             ),
-            Self::UnknownArgument(arg) => write!(f, "Unknown argument: `{arg}`\n{}", help()),
-            Self::MultipleSubcommands(sub1, sub2) => write!(f, "Multiple subcommands given: `{sub1}` and `{sub2}`")
+            Self::UnknownArgument(arg) => write!(f, "Bargo: Unknown argument: `{arg}`\n{}", help()),
+            Self::MultipleSubcommands(sub1, sub2) => write!(f, "Bargo: Multiple subcommands given: `{sub1}` and `{sub2}`")
         }
-    }
+	}
 }
 
 /// Errors while parsing TOML.
 pub enum TomlError {
-    /// The TOML had invalid syntax. Stores the parsing error and the original TOML source.
-    ParseError(BomlError, String),
-    /// A TOML value was the wrong type. Stores the key name, expected type, and actual type.
-    TypeMismatch(String, TomlValueType, TomlValueType),
-    /// A TOML value in an array or table was the wrong type. Stores the parent's key, expected type, and actual type.
-    ChildTypeMismatch(String, TomlValueType, TomlValueType),
-    /// An expected TOML key was missing. Stores the key and the expected type of the key's value.
-    MissingKey(String, TomlValueType),
+	/// The TOML had invalid syntax. Stores the parsing error and the original TOML source.
+	ParseError(BomlError, String),
+	/// A TOML value was the wrong type. Stores the key name, expected type, and actual type.
+	TypeMismatch(String, TomlValueType, TomlValueType),
+	/// A TOML value in an array or table was the wrong type. Stores the parent's key, expected type, and actual type.
+	ChildTypeMismatch(String, TomlValueType, TomlValueType),
+	/// An expected TOML key was missing. Stores the key and the expected type of the key's value.
+	MissingKey(String, TomlValueType),
 }
 impl Debug for TomlError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ParseError(err, src) => write!(f, "{}", prettify_toml_error(err, src)),
-            Self::TypeMismatch(key, expected_type, actual_type) => {
-                write!(
-                    f,
-                    "Expected `{key}` to be a {expected_type:?}, but it was a {actual_type:?}."
-                )
-            }
-            Self::ChildTypeMismatch(key, expected_type, actual_type) => {
-                write!(f, "Expected children of `{key}` to be a `{expected_type:?}`, but found a `{actual_type:?}`.")
-            }
-            Self::MissingKey(key, ty) => {
-                write!(
-                    f,
-                    "Couldn't find the key `{key}` (which should store a `{ty:?}`)."
-                )
-            }
-        }
-    }
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::ParseError(err, src) => write!(f, "{}", prettify_toml_error(err, src)),
+			Self::TypeMismatch(key, expected_type, actual_type) => {
+				write!(
+					f,
+					"Expected `{key}` to be a {expected_type:?}, but it was a {actual_type:?}."
+				)
+			}
+			Self::ChildTypeMismatch(key, expected_type, actual_type) => {
+				write!(f, "Expected children of `{key}` to be a `{expected_type:?}`, but found a `{actual_type:?}`.")
+			}
+			Self::MissingKey(key, ty) => {
+				write!(
+					f,
+					"Couldn't find the key `{key}` (which should store a `{ty:?}`)."
+				)
+			}
+		}
+	}
 }
 
 /// Errors for the `bargo build` command.
 pub enum BuildError {
-    /// An unknown crate was specified. Stores where the unknown crate was specified and the crate's name.
-    UnknownCrate(UnknownCrateSource, String),
-    /// Two crates depend on each other with bargo's `prebuild` feature. Stores the cyclic crate's name.
-    CyclicDependency(String),
-    /// A post-build script failed to run.
-    PostBuildFailed,
-    /// A post-build script was specified, but couldn't be found. Stores the crate with a postbuild setting
-    /// and the path it set.
-    PostBuildNotFound(String, String),
-    /// A Cargo command failed to run.
-    CargoFailed,
-    /// A crate in the bargo workspace had an invalid `Cargo.toml`. Stores the crate with the invalid cfg
-    /// and the TOML error in the cfg.
-    InvalidCargoToml(String, TomlError),
-    /// A crate's name in the bargo config didn't match its name in its Cargo.toml config. Stores the
-    /// name in the bargo config and the name in the Cargo.toml config.
-    CrateNameMismatch(String, String),
-    /// Bargo couldn't find a crate's Cargo.toml. Stores the crate's name and the path Bargo searched.
-    NoCargoToml(String, String),
+	/// An unknown crate was specified. Stores where the unknown crate was specified and the crate's name.
+	UnknownCrate(UnknownCrateSource, String),
+	/// Two crates depend on each other with bargo's `prebuild` feature. Stores the cyclic crate's name.
+	CyclicDependency(String),
+	/// A post-build script failed to run.
+	PostBuildFailed,
+	/// A post-build script was specified, but couldn't be found. Stores the crate with a postbuild setting
+	/// and the path it set.
+	PostBuildNotFound(String, String),
+	/// A Cargo command failed to run.
+	CargoFailed,
+	/// A crate in the bargo workspace had an invalid `Cargo.toml`. Stores the crate with the invalid cfg
+	/// and the TOML error in the cfg.
+	InvalidCargoToml(String, TomlError),
+	/// A crate's name in the bargo config didn't match its name in its Cargo.toml config. Stores the
+	/// name in the bargo config and the name in the Cargo.toml config.
+	CrateNameMismatch(String, String),
+	/// Bargo couldn't find a crate's Cargo.toml. Stores the crate's name and the path Bargo searched.
+	NoCargoToml(String, String),
 }
 impl Debug for BuildError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::PostBuildFailed => write!(f, "A post-build script failed to run, exiting..."),
-            Self::CargoFailed => write!(f, "A Cargo command failed to run, exiting..."),
-            Self::CyclicDependency(pkg) => {
-                write!(f, "Cyclic dependency detected for crate `{pkg}`.")
-            }
-            Self::UnknownCrate(source, name) => {
-                write!(f, "Unknown crate `{name}` specified in {source:?}.")
-            }
-            Self::PostBuildNotFound(pkg, path) => write!(
-                f,
-                "Couldn't find the post-build script for `{pkg}` at `{path}`."
-            ),
-            Self::InvalidCargoToml(pkg, err) => {
-                write!(f, "Crate `{pkg}`'s Cargo.toml has a syntax error: {err:?}")
-            }
-            Self::CrateNameMismatch(bargo_name, cargo_name) => {
-                write!(f, "A crate is named `{bargo_name}` in `bargo.toml`, but is named `{cargo_name}` in its `Cargo.toml`.")
-            }
-            Self::NoCargoToml(pkg, attempted_path) => {
-                write!(f, "Bargo couldn't find the `Cargo.toml` file for `{pkg}`. It searched at `{attempted_path}`.")
-            }
-        }
-    }
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::PostBuildFailed => write!(f, "A post-build script failed to run, exiting..."),
+			Self::CargoFailed => write!(f, "A Cargo command failed to run, exiting..."),
+			Self::CyclicDependency(pkg) => {
+				write!(f, "Cyclic dependency detected for crate `{pkg}`.")
+			}
+			Self::UnknownCrate(source, name) => {
+				write!(f, "Unknown crate `{name}` specified in {source:?}.")
+			}
+			Self::PostBuildNotFound(pkg, path) => write!(
+				f,
+				"Couldn't find the post-build script for `{pkg}` at `{path}`."
+			),
+			Self::InvalidCargoToml(pkg, err) => {
+				write!(f, "Crate `{pkg}`'s Cargo.toml has a syntax error: {err:?}")
+			}
+			Self::CrateNameMismatch(bargo_name, cargo_name) => {
+				write!(f, "A crate is named `{bargo_name}` in `bargo.toml`, but is named `{cargo_name}` in its `Cargo.toml`.")
+			}
+			Self::NoCargoToml(pkg, attempted_path) => {
+				write!(f, "Bargo couldn't find the `Cargo.toml` file for `{pkg}`. It searched at `{attempted_path}`.")
+			}
+		}
+	}
 }
 
 /// See [`BuildError::UnknownCrate`].
 pub enum UnknownCrateSource {
-    /// An unknown crate was specified in the `prebuild` setting of a crate. Stores the name of the crate with
-    /// the unknown prebuild.
-    Prebuild(String),
-    /// An unknown crate was specified in the `workspace.default-build` setting.
-    DefaultBuild,
-    /// An unknown crate was passed as an argument to `bargo build`.
-    CliArg,
+	/// An unknown crate was specified in the `prebuild` setting of a crate. Stores the name of the crate with
+	/// the unknown prebuild.
+	Prebuild(String),
+	/// An unknown crate was specified in the `workspace.default-build` setting.
+	DefaultBuild,
+	/// An unknown crate was passed as an argument to `bargo build`.
+	CliArg,
 }
 impl Debug for UnknownCrateSource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Prebuild(pkg) => write!(f, "`{pkg}`'s `prebuild` setting"),
-            Self::DefaultBuild => write!(f, "the `workspace.default-build` table"),
-            Self::CliArg => write!(f, "`bargo build`'s arguments"),
-        }
-    }
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::Prebuild(pkg) => write!(f, "`{pkg}`'s `prebuild` setting"),
+			Self::DefaultBuild => write!(f, "the `workspace.default-build` table"),
+			Self::CliArg => write!(f, "`bargo build`'s arguments"),
+		}
+	}
+}
+
+/// Errors for the `bargo run` command.
+pub enum RunError {
+	/// More than 1 crate was listed to be run.
+	TooManyCrates,
+	/// No crate was given to be run, and there's no default-run in the workspace table.
+	NoCrateToRun,
+	/// The crate to run isn't in the crates table. Stores the crate's name.
+	UnknownCrate(String),
+	/// `cargo run` failed to run.
+	CargoError,
+}
+impl Debug for RunError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::TooManyCrates => {
+				write!(f, "Error: Only 1 crate can be specified for `bargo run`")
+			}
+			Self::NoCrateToRun => {
+				write!(f, "Error: `bargo run` needs 1 crate to run, specified either with `-p` or the `default-run` value in the workspace table.")
+			}
+			Self::UnknownCrate(pkg) => {
+				write!(
+					f,
+					"Error: Crate `{pkg}` was listed to run, but isn't in the crates table."
+				)
+			}
+			Self::CargoError => {
+				write!(f, "`cargo run` failed, exiting...")
+			}
+		}
+	}
 }
 
 fn prettify_toml_error(err: &BomlError, src: &str) -> String {
-    let contextual_start = if err.start > 15 { err.start - 15 } else { 0 };
-    let contextual_end = if src.len() - 16 > err.end {
-        err.end + 15
-    } else {
-        src.len() - 1
-    };
+	let contextual_start = if err.start > 15 { err.start - 15 } else { 0 };
+	let contextual_end = if src.len() - 16 > err.end {
+		err.end + 15
+	} else {
+		src.len() - 1
+	};
 
-    format!(
+	format!(
         "Syntax error:\nError type: {:?}\nThe error comes from here: `{}`\n...which is in this region of text: `{}`",
         err.kind,
         &src[err.start..=err.end],
@@ -167,20 +203,20 @@ fn prettify_toml_error(err: &BomlError, src: &str) -> String {
 }
 
 pub mod style {
-    pub const _RESET: &str = "\x1B[0m";
+	pub const _RESET: &str = "\x1B[0m";
 
-    pub const BOLD: &str = "\x1B[1m";
-    pub const UNBOLD: &str = "\x1B[22m";
+	pub const BOLD: &str = "\x1B[1m";
+	pub const UNBOLD: &str = "\x1B[22m";
 
-    pub const GREEN: &str = "\x1B[32m";
-    pub const BLUE: &str = "\x1B[36m";
-    pub const WHITE: &str = "\x1B[37m";
+	pub const GREEN: &str = "\x1B[32m";
+	pub const BLUE: &str = "\x1B[36m";
+	pub const WHITE: &str = "\x1B[37m";
 }
 
 pub fn help() -> String {
-    use style::*;
+	use style::*;
 
-    format!(
+	format!(
         "\
         {WHITE}Help: \n\
         \n\
