@@ -140,7 +140,7 @@ pub fn build_crate(
 		for feature in prebuild_metadata.as_ref().unwrap().features.iter() {
 			args.push(feature);
 		}
-	} else if !build_ctx.ctx.args.features.is_empty() {
+	} else if prebuild_metadata.is_none() && !build_ctx.ctx.args.features.is_empty() {
 		args.push("--features");
 		for feature in build_ctx.ctx.args.features.iter() {
 			args.push(feature);
